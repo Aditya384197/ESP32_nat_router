@@ -33,6 +33,7 @@ CONFIG_LWIP_TCP_RCV_SCALE=y
 # Do not spend packet-path bytes/CPU on TCP timestamps/keepalive.
 CONFIG_LWIP_TCP_TX_TIMESTAMPS=n
 CONFIG_LWIP_TCP_KEEPALIVE=n
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=64
 
 # Wi-Fi aggregation
 CONFIG_ESP_WIFI_TX_BA_WIN=16
@@ -64,3 +65,14 @@ CONFIG_LOG_DEFAULT_LEVEL=ERROR
 
 # DHCP server is required for the SoftAP clients.
 CONFIG_LWIP_DHCPS=y
+
+# Larger but bounded TCP/IP queues for sustained NAT throughput.
+CONFIG_LWIP_TCP_SND_QUEUELEN=128
+CONFIG_LWIP_MAX_SOCKETS=16
+# Keep IPv6 out of this IPv4-only NAT firmware.
+CONFIG_LWIP_IPV6=n
+# Wi-Fi driver memory/aggregation tuning.
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=32
+# Keep Wi-Fi AMPDU aggregation enabled.
