@@ -5,8 +5,6 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 
-#include "lwip/lwip_napt.h"
-#include "lwip/netif.h"
 
 #include "freertos/FreeRTOS.h"
 
@@ -25,6 +23,8 @@
  * priority, so the SoftAP follows the upstream AP channel. The STA is NOT
  * locked to a BSSID or channel, allowing the upstream AP to move among
  * channels 1/6/11 and reconnect using the normal Wi-Fi driver scan logic.
+ * The STA channel is kept at 0 so a reconnect after an upstream channel
+ * change performs a fresh scan instead of being trapped on the old channel.
  */
 
 static esp_netif_t *s_sta_netif = NULL;
@@ -34,7 +34,6 @@ static bool s_napt_enabled = false;
 /* Keep the last successfully used channel as a reconnect hint.
  * If the upstream AP moves, the driver can fall back to its normal scan.
  */
-static uint8_t s_last_channel = 0;
 
 static void configure_ap_netif(void)
 {
@@ -87,6 +86,7 @@ static void wifi_event_handler(void *arg,
              * The first connection is initiated by the driver event path.
              * No reconnect task is needed.
              */
+            (void)esp_wifi_clear_fast_connect();
             (void)esp_wifi_connect();
             return;
         }
@@ -98,11 +98,7 @@ static void wifi_event_handler(void *arg,
              * mechanism. The STA is not BSSID/channel locked.
              */
             if (s_napt_enabled) {
-                struct netif *ap_netif =
-                    (struct netif *)esp_netif_get_netif_impl(s_ap_netif);
-                if (ap_netif != NULL) {
-                    ip_napt_enable_netif(ap_netif, 0);
-                }
+                (void)esp_netif_napt_disable(s_ap_netif);
                 s_napt_enabled = false;
             }
 
@@ -126,17 +122,10 @@ static void wifi_event_handler(void *arg,
          * In APSTA, the external AP's channel has priority. The SoftAP
          * therefore follows whatever channel the upstream AP is using.
          */
-        wifi_second_chan_t second = WIFI_SECOND_CHAN_NONE;
-        uint8_t channel = 0;
-        if (esp_wifi_get_channel(&channel, &second) == ESP_OK) {
-            s_last_channel = channel;
-        }
-
-        struct netif *ap_netif =
-            (struct netif *)esp_netif_get_netif_impl(s_ap_netif);
-
-        if (ap_netif != NULL) {
-            ip_napt_enable_netif(ap_netif, 1);
+        /* Enable NAPT on the ESP-NETIF AP interface.  This is the public
+         * ESP-IDF 5.1 API and avoids depending on an internal lwIP netif
+         * pointer. */
+        if (esp_netif_napt_enable(s_ap_netif) == ESP_OK) {
             s_napt_enabled = true;
         }
     }
@@ -193,7 +182,7 @@ esp_err_t router_core_init(void)
      */
     sta_cfg.sta.scan_method = WIFI_FAST_SCAN;
     sta_cfg.sta.bssid_set = false;
-    sta_cfg.sta.channel = s_last_channel; /* 0 on first boot */
+    sta_cfg.sta.channel = 0; /* never lock the STA to a channel */
     sta_cfg.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
     sta_cfg.sta.threshold.rssi = -127;
     sta_cfg.sta.failure_retry_cnt = 5;
@@ -211,6 +200,16 @@ esp_err_t router_core_init(void)
      */
     ESP_ERROR_CHECK(esp_wifi_set_country_code("IN", true));
     apply_radio_performance();
+
+    /*
+     * Do not use modem sleep. For a mains-powered router, keeping the radio
+     * continuously awake gives the most deterministic latency/throughput.
+     *
+     * Protocol is already restricted to 11g/n. We deliberately do NOT force
+     * HT40: on a busy 2.4-GHz environment automatic bandwidth selection can
+     * sustain more useful throughput than a forced 40-MHz channel.
+     */
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
     /*
      * Explicitly start the connection. If the Airtel AP later changes
