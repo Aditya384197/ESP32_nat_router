@@ -1,0 +1,66 @@
+# ESP32 classic / ESP-IDF 5.1.x
+# Minimal high-performance NAT-router configuration.
+
+# CPU / scheduler
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
+
+# Wi-Fi hot-path IRAM
+CONFIG_ESP_WIFI_IRAM_OPT=y
+CONFIG_ESP_WIFI_RX_IRAM_OPT=y
+
+# lwIP hot-path optimization
+CONFIG_LWIP_IRAM_OPTIMIZATION=y
+
+# Keep TCP/IP/NAPT on the second core; Wi-Fi driver/radio remains driver-owned.
+CONFIG_LWIP_TCPIP_TASK_AFFINITY_CPU1=y
+
+# IPv4 forwarding/NAPT
+CONFIG_LWIP_IP_FORWARD=y
+CONFIG_LWIP_IPV4_NAPT=y
+CONFIG_LWIP_IPV4_NAPT_ENABLE_DEFAULT=y
+
+# TCP throughput
+CONFIG_LWIP_TCP_MSS=1460
+CONFIG_LWIP_TCP_WND=32768
+CONFIG_LWIP_TCP_SND_BUF=32768
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=64
+CONFIG_LWIP_UDP_RECVMBOX_SIZE=64
+CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
+CONFIG_LWIP_TCPIP_TASK_STACK_SIZE=4096
+CONFIG_LWIP_TCP_SACK_OUT=y
+CONFIG_LWIP_TCP_RCV_SCALE=y
+
+# Do not spend packet-path bytes/CPU on TCP timestamps/keepalive.
+CONFIG_LWIP_TCP_TX_TIMESTAMPS=n
+CONFIG_LWIP_TCP_KEEPALIVE=n
+
+# Wi-Fi aggregation
+CONFIG_ESP_WIFI_TX_BA_WIN=16
+CONFIG_ESP_WIFI_RX_BA_WIN=16
+CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=y
+CONFIG_ESP_WIFI_AMPDU_RX_ENABLED=y
+
+# Credentials/config are compiled into the application; Wi-Fi NVS storage
+# is deliberately disabled.
+CONFIG_ESP_WIFI_NVS_ENABLED=n
+
+# India regulatory domain / PHY power ceiling
+CONFIG_ESP_PHY_CALIBRATION_AND_DATA_STORAGE=y
+CONFIG_ESP_PHY_INIT_DATA_IN_PARTITION=y
+CONFIG_ESP_PHY_MAX_WIFI_TX_POWER=20
+
+# Performance compiler optimization
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Remove unused radio stack
+CONFIG_BT_ENABLED=n
+
+# Keep logging quiet; application has no periodic logging.
+CONFIG_LOG_DEFAULT_LEVEL=ERROR
+
+# Do not increase the FreeRTOS tick to 1000 Hz just for a router with no
+# application timers. Lower scheduler tick overhead leaves more CPU time for
+# Wi-Fi/lwIP. ESP-IDF default tick is used.
+
+# DHCP server is required for the SoftAP clients.
+CONFIG_LWIP_DHCPS=y
